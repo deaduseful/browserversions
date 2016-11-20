@@ -28,9 +28,9 @@ class BrowserVersions
     /**
      * The cache file, the browser versions.
      */
-    var $cacheFile = __DIR__ . 'versions.json';
+    var $cacheFile = 'versions.json';
     /**
-     * The maximum age of the cache file.
+     * The maximum age of the cache file. Default is 3 months which is half of the expected browser release cycle.
      */
     var $maxAge = 3 * 7 * 24 * 60 * 60;
     /**
