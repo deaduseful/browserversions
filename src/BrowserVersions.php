@@ -89,7 +89,7 @@ class BrowserVersions
 
     /**
      * @param array $versions
-     * @return string
+     * @return array
      */
     function fetchVersions($versions = array())
     {
@@ -104,7 +104,7 @@ class BrowserVersions
                 $versions[$key] = $version;
             }
         }
-        return json_encode($versions, true);
+        return $versions;
     }
 
     /**
