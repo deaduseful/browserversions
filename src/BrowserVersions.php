@@ -3,6 +3,7 @@
 namespace Deaduseful\BrowserVersions;
 
 use Exception;
+use UnexpectedValueException;
 
 /**
  * Class BrowserVersions
@@ -10,6 +11,16 @@ use Exception;
  */
 class BrowserVersions
 {
+    /**
+     * The URL path to get the browser version from.
+     */
+    const WIKIPEDIA_URL = 'http://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&format=php&titles=Template:Latest_stable_software_release/';
+
+    /**
+     * The pattern to use to match the Wikipedia article.
+     */
+    const WIKIPEDIA_PATTERN = '/(?:version1|latest[_ ]release[_ ]version) ?= ?([\d][\d\.]+)/';
+
     /**
      * The data file, details about the browsers.
      */
@@ -29,6 +40,8 @@ class BrowserVersions
 
     /**
      * BrowserVersions constructor.
+     *
+     * @param bool $force
      */
     function __construct($force = false)
     {
@@ -48,6 +61,9 @@ class BrowserVersions
             $force
         ) {
             $versions = is_file($cacheFile) ? json_decode(file_get_contents($cacheFile)) : array();
+            if (!is_array($versions)) {
+                $versions = array();
+            }
             $versions = $this->fetchVersions($versions);
             $output = json_encode($versions, true);
             if ($output) {
@@ -92,9 +108,13 @@ class BrowserVersions
     /**
      * @param array $versions
      * @return array
+     * @throws UnexpectedValueException
      */
     function fetchVersions($versions = array())
     {
+        if (!is_array($versions)) {
+            throw new UnexpectedValueException('Expected array.');
+        }
         $this->setData();
         $data = $this->getData();
         foreach ($data as $key => $name) {
@@ -161,8 +181,7 @@ class BrowserVersions
             throw new Exception('Invalid fragment.');
         }
 
-        $url = 'http://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&format=php&titles=Template:Latest_stable_software_release/';
-        $url .= $fragment;
+        $url = self::WIKIPEDIA_URL . $fragment;
 
         $raw_content = file_get_contents($url);
 
@@ -171,28 +190,14 @@ class BrowserVersions
             throw new Exception('Invalid content.');
         }
         $page = array_pop($content['query']['pages']);
-        $raw_data = explode("\n", $page['revisions'][0]['*']);
-
+        $raw_data = $page['revisions'][0]['*'];
         $version = false;
-        foreach ($raw_data as $data) {
-            $data = trim($data, '| ');
-            if (false !== strpos($data, 'Android') || false !== strpos($data, 'iOS'))
-                continue;
-            if (false !== strpos($data, 'Linux') && false === strpos($data, 'Mac OS X') && false === strpos($data, 'Windows') && false === strpos($data, 'Microsoft'))
-                continue;
-            if ((false !== $pos = strpos($data, 'latest_release_version')) || (false !== $pos = strpos($data, 'latest release version'))) {
-                if ($pos)
-                    $data = substr($data, $pos);
-                $version = trim(str_replace(array('latest_release_version', 'latest release version', '='), '', $data), '| ') . " ";
-                $version = str_replace("'''Mac OS X''' and '''Microsoft Windows'''<br />", '', $version);
-                $version = str_replace("'''Windows 10'''<br>", '', $version);
-                $version = substr($version, 0, strpos($version, ' '));
-                break;
-            }
+        if (preg_match(self::WIKIPEDIA_PATTERN, $raw_data, $matches)) {
+            $version = $matches[1];
         }
 
         if ($version === false) {
-            throw new Exception('Invalid version.');
+            throw new Exception("Invalid version for $fragment.");
         }
 
         $version = preg_replace('/[^0-9\.]/', '', $version);
