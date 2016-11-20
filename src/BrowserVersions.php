@@ -11,22 +11,48 @@ class BrowserVersions
     /**
      * The data file, details about the browsers.
      */
-    var $dataFile = 'browsers.json';
+    var $dataFile = __DIR__ . '/browsers.json';
+    /**
+     * The cache file, the browser versions.
+     */
+    var $cacheFile = __DIR__ . 'versions.json';
+    /**
+     * The maximum age of the cache file.
+     */
+    var $maxAge = 3 * 7 * 24 * 60 * 60;
+    /**
+     * @var array The browser data.
+     */
+    var $data;
 
     /**
-     * @return mixed
+     * BrowserVersions constructor.
      */
-    public function getDataFile()
+    function __construct($force = false)
     {
-        return $this->dataFile;
+        $this->updateCache($force);
     }
 
     /**
-     * @param mixed $dataFile
+     * @param bool $force
+     * @return bool
      */
-    public function setDataFile($dataFile)
+    function updateCache($force = false)
     {
-        $this->dataFile = $dataFile;
+        $cacheFile = $this->getCacheFile();
+        if (!is_file($cacheFile) ||
+            !filesize($cacheFile) ||
+            time() - filemtime($cacheFile) >= $this->getMaxAge() ||
+            $force
+        ) {
+            $versions = is_file($cacheFile) ? json_decode(file_get_contents($cacheFile)) : array();
+            $versions = $this->fetchVersions($versions);
+            $output = json_encode($versions, true);
+            if ($output) {
+                return file_put_contents($cacheFile, $output);
+            }
+        }
+        return false;
     }
 
     /**
@@ -62,26 +88,23 @@ class BrowserVersions
     }
 
     /**
-     * The cache file, the browser versions.
+     * @param array $versions
+     * @return string
      */
-    var $cacheFile = 'versions.json';
-
-    /**
-     * The maximum age of the cache file.
-     */
-    var $maxAge = 3 * 7 * 24 * 60 * 60;
-
-    /**
-     * @var array The browser data.
-     */
-    var $data;
-
-    /**
-     * BrowserVersions constructor.
-     */
-    function __construct($force = false)
+    function fetchVersions($versions = array())
     {
-        $this->updateCache($force);
+        $this->setData();
+        $data = $this->getData();
+        foreach ($data as $key => $name) {
+            $browser = $key;
+            $fragment = $this->getData($browser, 'wikipedia');
+            $normalize = $this->getData($browser, 'normalized');
+            $version = $this->fetchVersion($fragment, $normalize);
+            if ($version) {
+                $versions[$key] = $version;
+            }
+        }
+        return json_encode($versions, true);
     }
 
     /**
@@ -90,6 +113,22 @@ class BrowserVersions
     private function setData()
     {
         $this->data = json_decode(file_get_contents($this->getDataFile()), 1);
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getDataFile()
+    {
+        return $this->dataFile;
+    }
+
+    /**
+     * @param mixed $dataFile
+     */
+    public function setDataFile($dataFile)
+    {
+        $this->dataFile = $dataFile;
     }
 
     /**
@@ -183,47 +222,5 @@ class BrowserVersions
             $return[] = $version[$i];
         }
         return implode('.', $return);
-    }
-
-    /**
-     * @param array $versions
-     * @return string
-     */
-    function fetchVersions($versions = array())
-    {
-        $this->setData();
-        $data = $this->getData();
-        foreach ($data as $key => $name) {
-            $browser = $key;
-            $fragment = $this->getData($browser, 'wikipedia');
-            $normalize = $this->getData($browser, 'normalized');
-            $version = $this->fetchVersion($fragment, $normalize);
-            if ($version) {
-                $versions[$key] = $version;
-            }
-        }
-        return json_encode($versions, true);
-    }
-
-    /**
-     * @param bool $force
-     * @return bool
-     */
-    function updateCache($force = false)
-    {
-        $cacheFile = $this->getCacheFile();
-        if (!is_file($cacheFile) ||
-            !filesize($cacheFile) ||
-            time() - filemtime($cacheFile) >= $this->getMaxAge() ||
-            $force
-        ) {
-            $versions = is_file($cacheFile) ? json_decode(file_get_contents($cacheFile)) : array();
-            $versions = $this->fetchVersions($versions);
-            $output = json_encode($versions, true);
-            if ($output) {
-                return file_put_contents($cacheFile, $output);
-            }
-        }
-        return false;
     }
 }
