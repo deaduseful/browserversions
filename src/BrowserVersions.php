@@ -2,6 +2,8 @@
 
 namespace Deaduseful\BrowserVersions;
 
+use Exception;
+
 /**
  * Class BrowserVersions
  * @package Deaduseful\BrowserVersions
@@ -151,11 +153,12 @@ class BrowserVersions
      * @param $fragment
      * @param $normalize
      * @return array|bool|mixed|string
+     * @throws Exception
      */
     function fetchVersion($fragment, $normalize)
     {
         if (!$fragment) {
-            return false;
+            throw new Exception('Invalid fragment.');
         }
 
         $url = 'http://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&format=php&titles=Template:Latest_stable_software_release/';
@@ -165,7 +168,7 @@ class BrowserVersions
 
         $content = unserialize($raw_content);
         if ($content == $raw_content) {
-            return false;
+            throw new Exception('Invalid content.');
         }
         $page = array_pop($content['query']['pages']);
         $raw_data = explode("\n", $page['revisions'][0]['*']);
@@ -188,8 +191,8 @@ class BrowserVersions
             }
         }
 
-        if (false === $version) {
-            return false;
+        if ($version === false) {
+            throw new Exception('Invalid version.');
         }
 
         $version = preg_replace('/[^0-9\.]/', '', $version);
