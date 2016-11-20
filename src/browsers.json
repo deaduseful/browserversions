@@ -1,0 +1,26 @@
+{
+  "chrome": {
+    "wikipedia": "Google_Chrome",
+    "normalized": 1
+  },
+  "firefox": {
+    "wikipedia": "Firefox",
+    "normalized": 1.5
+  },
+  "safari": {
+    "wikipedia": "Safari",
+    "normalized": 1.5
+  },
+  "opera": {
+    "wikipedia": "Opera",
+    "normalized": 2
+  },
+  "ie": {
+    "wikipedia": "Internet_Explorer",
+    "normalized": 1
+  },
+  "edge": {
+    "wikipedia": "Microsoft_Edge",
+    "normalized": 1
+  }
+}
