@@ -45,6 +45,7 @@ class BrowserVersions
      * BrowserVersions constructor.
      *
      * @param bool $force
+     * @throws Exception
      */
     function __construct($force = false)
     {
@@ -115,6 +116,7 @@ class BrowserVersions
      * @param array $versions
      * @return array
      * @throws UnexpectedValueException
+     * @throws Exception
      */
     function fetchVersions($versions = [])
     {
