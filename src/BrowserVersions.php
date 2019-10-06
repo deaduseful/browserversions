@@ -227,7 +227,8 @@ class BrowserVersions
 
         if ($normalize == 1.5) {
             $return = $version[0];
-            if ('0' !== $version[1])
+            if (isset($version[1]) &&
+                $version[1] !== '0')
                 $return .= '.' . $version[1];
             return $return;
         }
