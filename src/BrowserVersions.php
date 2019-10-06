@@ -67,9 +67,16 @@ class BrowserVersions
             filesize($cacheFile) === 0 ||
             time() - filemtime($cacheFile) >= $this->getMaxAge()
         ) {
-            $versions = is_file($cacheFile) ? json_decode(file_get_contents($cacheFile)) : [];
-            if (is_array($versions) === false) {
-                throw new Exception('Unable to parse cache file.');
+            $versions = [];
+            if (is_file($cacheFile)) {
+                $cacheContents = file_get_contents($cacheFile);
+                if (empty($cacheContents) === false) {
+                    $cachedVersions = json_decode($cacheContents);
+                    if (json_last_error() === JSON_ERROR_NONE &&
+                        is_array($cachedVersions)) {
+                        $versions = $cachedVersions;
+                    }
+                }
             }
             $versions = $this->fetchVersions($versions);
             $output = json_encode($versions, true);
