@@ -14,7 +14,7 @@ class BrowserVersions
     /**
      * The URL path to get the browser version from.
      */
-    const WIKIPEDIA_URL = 'http://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&format=php&titles=Template:Latest_stable_software_release/';
+    const WIKIPEDIA_URL = 'https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&format=php&titles=Template:Latest_stable_software_release/';
 
     /**
      * The pattern to use to match the Wikipedia article.
@@ -25,14 +25,17 @@ class BrowserVersions
      * The data file, details about the browsers.
      */
     var $dataFile = __DIR__ . '/browsers.json';
+
     /**
      * The cache file, the browser versions.
      */
     var $cacheFile = 'versions.json';
+
     /**
      * The maximum age of the cache file. Default is 3 months which is half of the expected browser release cycle.
      */
     var $maxAge = 3 * 7 * 24 * 60 * 60;
+
     /**
      * @var array The browser data.
      */
@@ -49,20 +52,23 @@ class BrowserVersions
     }
 
     /**
+     * Update Cache.
+     *
      * @param bool $force
      * @return bool
+     * @throws Exception
      */
     function updateCache($force = false)
     {
         $cacheFile = $this->getCacheFile();
-        if (!is_file($cacheFile) ||
-            !filesize($cacheFile) ||
-            time() - filemtime($cacheFile) >= $this->getMaxAge() ||
-            $force
+        if ($force ||
+            is_file($cacheFile) === false ||
+            filesize($cacheFile) === 0 ||
+            time() - filemtime($cacheFile) >= $this->getMaxAge()
         ) {
-            $versions = is_file($cacheFile) ? json_decode(file_get_contents($cacheFile)) : array();
-            if (!is_array($versions)) {
-                $versions = array();
+            $versions = is_file($cacheFile) ? json_decode(file_get_contents($cacheFile)) : [];
+            if (is_array($versions) === false) {
+                throw new Exception('Unable to parse cache file.');
             }
             $versions = $this->fetchVersions($versions);
             $output = json_encode($versions, true);
@@ -110,7 +116,7 @@ class BrowserVersions
      * @return array
      * @throws UnexpectedValueException
      */
-    function fetchVersions($versions = array())
+    function fetchVersions($versions = [])
     {
         if (!is_array($versions)) {
             throw new UnexpectedValueException('Expected array.');
@@ -170,17 +176,15 @@ class BrowserVersions
     }
 
     /**
-     * @param $fragment
-     * @param $normalize
+     * Fetch browser version from Wikipedia.
+     *
+     * @param $fragment string The "wikipedia" fragment, eg: Firefox.
+     * @param $normalize double The "normalized", eg: 1.5
      * @return array|bool|mixed|string
      * @throws Exception
      */
     function fetchVersion($fragment, $normalize)
     {
-        if (!$fragment) {
-            throw new Exception('Invalid fragment.');
-        }
-
         $url = self::WIKIPEDIA_URL . $fragment;
 
         $raw_content = file_get_contents($url);
@@ -196,8 +200,8 @@ class BrowserVersions
             $version = $matches[1];
         }
 
-        if ($version === false) {
-            throw new Exception("Invalid version for $fragment.");
+        if (empty($version)) {
+            throw new Exception("Missing version for $fragment.");
         }
 
         $version = preg_replace('/[^0-9\.]/', '', $version);
@@ -225,7 +229,7 @@ class BrowserVersions
             return $return;
         }
 
-        $return = array();
+        $return = [];
         for ($i = 0; $i < $normalize; $i++) {
             $return[] = $version[$i];
         }
