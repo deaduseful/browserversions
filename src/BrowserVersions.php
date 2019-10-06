@@ -19,7 +19,7 @@ class BrowserVersions
     /**
      * The pattern to use to match the Wikipedia article.
      */
-    const WIKIPEDIA_PATTERN = '/(?:version1|latest[_ ]release[_ ]version) ?= ?([\d][\d\.]+)/';
+    const WIKIPEDIA_PATTERN = '/(?:version1|latest[_ ]release[_ ]version)\s*=\s*([\d][\d\.]+)/';
 
     /**
      * The data file, details about the browsers.
@@ -197,6 +197,7 @@ class BrowserVersions
         }
         $page = array_pop($content['query']['pages']);
         $raw_data = $page['revisions'][0]['*'];
+
         $version = false;
         if (preg_match(self::WIKIPEDIA_PATTERN, $raw_data, $matches)) {
             $version = $matches[1];
