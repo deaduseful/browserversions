@@ -2,7 +2,7 @@
 
 namespace Deaduseful\BrowserVersions;
 
-use Exception;
+use DomainException;
 use UnexpectedValueException;
 
 /**
@@ -45,7 +45,6 @@ class BrowserVersions
      * BrowserVersions constructor.
      *
      * @param bool $force
-     * @throws Exception
      */
     function __construct($force = false)
     {
@@ -57,7 +56,6 @@ class BrowserVersions
      *
      * @param bool $force
      * @return bool
-     * @throws Exception
      */
     function updateCache($force = false)
     {
@@ -123,7 +121,6 @@ class BrowserVersions
      * @param array $versions
      * @return array
      * @throws UnexpectedValueException
-     * @throws Exception
      */
     function fetchVersions($versions = [])
     {
@@ -187,10 +184,10 @@ class BrowserVersions
     /**
      * Fetch browser version from Wikipedia.
      *
-     * @param $fragment string The "wikipedia" fragment, eg: Firefox.
-     * @param $normalize double The "normalized", eg: 1.5
+     * @param string $fragment The "wikipedia" fragment, eg: Firefox.
+     * @param double $normalize The "normalized", eg: 1.5
      * @return array|bool|mixed|string
-     * @throws Exception
+     * @throws DomainException
      */
     function fetchVersion($fragment, $normalize)
     {
@@ -200,7 +197,7 @@ class BrowserVersions
 
         $content = unserialize($raw_content);
         if ($content == $raw_content) {
-            throw new Exception('Invalid content.');
+            throw new DomainException('Invalid content.');
         }
         $page = array_pop($content['query']['pages']);
         $raw_data = $page['revisions'][0]['*'];
@@ -211,7 +208,7 @@ class BrowserVersions
         }
 
         if (empty($version)) {
-            throw new Exception("Missing version for $fragment.");
+            throw new DomainException("Missing version for $fragment.");
         }
 
         $version = preg_replace('/[^0-9\.]/', '', $version);
