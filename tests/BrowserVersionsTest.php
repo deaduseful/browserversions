@@ -21,4 +21,11 @@ final class BrowserVersionsTest extends TestCase
         $expected = ['Q777', 'P548=Q2804309', 'P400=Q1406', 'P348'];
         $this->assertEquals($expected, $actual);
     }
+
+    public function testFetchVersion()
+    {
+        $fragment = 'Google_Chrome';
+        $actual = BrowserVersions::fetchVersion($fragment, 1);
+        $this->assertIsNumeric($actual);
+    }
 }

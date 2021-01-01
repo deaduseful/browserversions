@@ -3,6 +3,7 @@
 namespace Deaduseful\BrowserVersions;
 
 use DomainException;
+use RuntimeException;
 use UnexpectedValueException;
 
 /**
@@ -157,30 +158,6 @@ class BrowserVersions
         return $this->configFile;
     }
 
-    public static function parseWikidata($matches)
-    {
-        if (empty($matches)) {
-            throw new DomainException("Unable to parse Wikidata.");
-        }
-
-        $wikidata = $matches[1];
-
-        $pattern = '/{{wikidata\|property\|edit\|reference\|([^\|]+)\|([^\|]+)\|([^\|]+)\|([^\|]+)}}/';
-
-        preg_match($pattern, $wikidata, $newMatches);
-        array_shift($newMatches);
-
-        return $newMatches;
-    }
-
-    /**
-     * @param mixed $configFile
-     */
-    public function setConfigFile($configFile)
-    {
-        $this->configFile = $configFile;
-    }
-
     /**
      * @param bool $browser
      * @param bool $item
@@ -202,19 +179,169 @@ class BrowserVersions
      * Fetch browser version from Wikipedia.
      *
      * @param string $fragment The "wikipedia" fragment, eg: Firefox.
-     * @param double $normalize The "normalized", eg: 1.5
+     * @param int|double|null $normalize The "normalized", eg: 1.5
      * @return array|bool|mixed|string
      * @throws DomainException
      */
-    public static function fetchVersion($fragment, $normalize)
+    public static function fetchVersion($fragment, $normalize = null)
     {
         $rawData = self::getRawData($fragment);
+        $wikidataMatches = self::getMatches($rawData);
+        $wikidataValues = self::parseWikidata($wikidataMatches);
+        $wikidataQuery = self::getWikidataQuery($wikidataValues[0]);
+        $wikidata = self::getWikiData($wikidataQuery);
+        $version = self::getVersionMatches($wikidata);
+        return self::parseVersion($version, $normalize);
+    }
 
-        $matches = self::getMatches($rawData);
+    /**
+     * @param string $fragment
+     * @return mixed
+     */
+    public static function getRawData($fragment)
+    {
+        $url = self::WIKIPEDIA_URL . $fragment;
+        $rawContent = file_get_contents($url);
+        $content = unserialize($rawContent);
+        if ($content == $rawContent) {
+            throw new DomainException('Invalid content.');
+        }
+        $page = array_pop($content['query']['pages']);
+        return $page['revisions'][0]['*'];
+    }
 
-        self::parseWikidata($matches);
+    /**
+     * @param string $rawData
+     * @return mixed
+     */
+    public static function getMatches($rawData)
+    {
+        if (preg_match(self::WIKIPEDIA_PATTERN, $rawData, $matches) === false) {
+            throw new DomainException("Unable to get matches.");
+        }
+        return $matches;
+    }
 
-        return self::parseVersion($matches, $fragment, $normalize);
+    public static function parseWikidata($matches)
+    {
+        if (empty($matches)) {
+            throw new DomainException("Unable to parse Wikidata.");
+        }
+
+        $wikidata = $matches[1];
+
+        $pattern = '/{{wikidata\|property\|edit\|reference\|([^\|]+)\|([^\|]+)\|([^\|]+)\|([^\|]+)}}/';
+
+        preg_match($pattern, $wikidata, $newMatches);
+        array_shift($newMatches);
+
+        return $newMatches;
+    }
+
+    /**
+     * @param string $fragment
+     * @param string $property
+     * @param false $rank
+     * @return string
+     */
+    public static function getWikidataQuery($fragment, $property = 'P348', $rank = false)
+    {
+        $rankType = $rank ? 'PreferredRank' : 'NormalRank';
+        $limit = $rank ? 'LIMIT 1' : '';
+
+        return "
+		SELECT ?version WHERE {
+			wd:{$fragment} p:{$property} [
+				ps:{$property} ?version;
+				wikibase:rank wikibase:{$rankType}
+			].
+		}
+		{$limit}
+	";
+    }
+
+    public static function getWikiData($query)
+    {
+        $queryArray = [
+            'format' => 'json',
+            'query' => $query,
+        ];
+        $queryString = http_build_query($queryArray);
+        $url = 'https://query.wikidata.org/bigdata/namespace/wdq/sparql';
+        $url .= '?' . $queryString;
+        return self::fileGetContents($url);
+    }
+
+    /**
+     * Similar to file_get_contents, but passes in a user agent.
+     *
+     * @param string $host
+     * @param array $headers
+     * @param int $timeout
+     * @return string
+     */
+    protected static function fileGetContents($host, $headers = ['User-Agent: Browser Versions'], $timeout = 1)
+    {
+        if (ini_get('allow_url_fopen') == '0') {
+            throw new RuntimeException('Disabled in the server configuration by allow_url_fopen=0');
+        }
+        $options = [
+            'http' =>
+                [
+                    'header' => $headers,
+                    'timeout' => $timeout
+                ]
+        ];
+        $context = stream_context_create($options);
+        $flags = null;
+        return file_get_contents($host, $flags, $context);
+    }
+
+    private static function getVersionMatches($response)
+    {
+        $data = json_decode($response);
+
+        if (
+            empty($data) ||
+            empty($data->results) ||
+            !is_array($data->results->bindings)
+        ) {
+            return false;
+        }
+
+        if (
+            empty($data->results->bindings[0]) ||
+            empty($data->results->bindings[0]->version) ||
+            empty($data->results->bindings[0]->version->value)
+        ) {
+            return false;
+        }
+
+        usort($data->results->bindings, function ($a, $b) {
+            return strcmp($b->version->value, $a->version->value);
+        });
+
+        return $data->results->bindings[0]->version->value;
+    }
+
+    /**
+     * @param string $input
+     * @param int|double|null $normalize
+     * @return array|string|string[]|null
+     */
+    private static function parseVersion($input, $normalize = null)
+    {
+        if (empty($input)) {
+            throw new DomainException("Missing version.");
+        }
+
+        $version = preg_replace('/[^0-9\.]/', '', $input);
+
+        if ($normalize) {
+            return self::normalizeVersion($version, $normalize);
+        }
+
+        return $version;
     }
 
     /**
@@ -242,57 +369,10 @@ class BrowserVersions
     }
 
     /**
-     * @param string $rawData
-     * @return mixed
+     * @param mixed $configFile
      */
-    public static function getMatches($rawData)
+    public function setConfigFile($configFile)
     {
-        if (preg_match(self::WIKIPEDIA_PATTERN, $rawData, $matches) === false) {
-            throw new DomainException("Unable to get matches.");
-        }
-        return $matches;
-    }
-
-    /**
-     * @param string $fragment
-     * @return mixed
-     */
-    public static function getRawData($fragment)
-    {
-        $url = self::WIKIPEDIA_URL . $fragment;
-        $rawContent = file_get_contents($url);
-        $content = unserialize($rawContent);
-        if ($content == $rawContent) {
-            throw new DomainException('Invalid content.');
-        }
-        $page = array_pop($content['query']['pages']);
-        return $page['revisions'][0]['*'];
-    }
-
-    /**
-     * @param array $matches
-     * @param string $fragment
-     * @param int|float $normalize
-     * @return array|string|string[]|null
-     */
-    private static function parseVersion($matches, $fragment, $normalize)
-    {
-        if (empty($matches)) {
-            throw new DomainException("Unable get version matches for $fragment.");
-        }
-
-        $version = $matches[1];
-
-        if (empty($version)) {
-            throw new DomainException("Missing version for $fragment.");
-        }
-
-        $version = preg_replace('/[^0-9\.]/', '', $version);
-
-        if ($normalize) {
-            return self::normalizeVersion($version, $normalize);
-        }
-
-        return $version;
+        $this->configFile = $configFile;
     }
 }
