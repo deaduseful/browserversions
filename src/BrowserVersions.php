@@ -19,7 +19,7 @@ class BrowserVersions
     /**
      * The pattern to use to match the Wikipedia article.
      */
-    const WIKIPEDIA_PATTERN = '/(?:version1|latest[_ ]release[_ ]version)\s*=\s*([\d][\d\.]+)/';
+    const WIKIPEDIA_PATTERN = '/(?:version1|latest[_ ]release[_ ]version)\s*=\s*(.+)/';
 
     /**
      * The data file, details about the browsers.
@@ -239,7 +239,7 @@ class BrowserVersions
      * @param string $fragment
      * @return mixed
      */
-    private static function getRawData($fragment)
+    public static function getRawData($fragment)
     {
         $url = self::WIKIPEDIA_URL . $fragment;
         $rawContent = file_get_contents($url);
@@ -259,6 +259,10 @@ class BrowserVersions
      */
     private static function parseVersion($matches, $fragment, $normalize)
     {
+        if (empty($matches)) {
+            throw new DomainException("Unable get version matches for $fragment.");
+        }
+
         $version = $matches[1];
 
         if (empty($version)) {
