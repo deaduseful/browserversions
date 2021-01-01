@@ -24,22 +24,22 @@ class BrowserVersions
     /**
      * The data file, details about the browsers.
      */
-    var $dataFile = __DIR__ . '/browsers.json';
+    private $configFile = __DIR__ . '/browsers.json';
 
     /**
      * The cache file, the browser versions.
      */
-    var $cacheFile = 'versions.json';
+    private $cacheFile = 'versions.json';
 
     /**
      * The maximum age of the cache file. Default is 3 months which is half of the expected browser release cycle.
      */
-    var $maxAge = 3 * 7 * 24 * 60 * 60;
+    private $maxAge = 3 * 7 * 24 * 60 * 60;
 
     /**
      * @var array The browser data.
      */
-    var $data;
+    private $configData;
 
     /**
      * BrowserVersions constructor.
@@ -127,13 +127,13 @@ class BrowserVersions
         if (!is_array($versions)) {
             throw new UnexpectedValueException('Expected array.');
         }
-        $this->setData();
-        $data = $this->getData();
+        $this->loadConfigData();
+        $data = $this->getConfigData();
         foreach ($data as $key => $name) {
             $browser = $key;
-            $fragment = $this->getData($browser, 'wikipedia');
-            $normalize = $this->getData($browser, 'normalized');
-            $version = $this->fetchVersion($fragment, $normalize);
+            $fragment = $this->getConfigData($browser, 'wikipedia');
+            $normalize = $this->getConfigData($browser, 'normalized');
+            $version = self::fetchVersion($fragment, $normalize);
             if ($version) {
                 $versions[$key] = $version;
             }
@@ -144,25 +144,25 @@ class BrowserVersions
     /**
      *
      */
-    private function setData()
+    private function loadConfigData()
     {
-        $this->data = json_decode(file_get_contents($this->getDataFile()), 1);
+        $this->configData = json_decode(file_get_contents($this->getConfigDataFile()), 1);
     }
 
     /**
      * @return mixed
      */
-    public function getDataFile()
+    public function getConfigDataFile()
     {
-        return $this->dataFile;
+        return $this->configFile;
     }
 
     /**
-     * @param mixed $dataFile
+     * @param mixed $configFile
      */
-    public function setDataFile($dataFile)
+    public function setConfigFile($configFile)
     {
-        $this->dataFile = $dataFile;
+        $this->configFile = $configFile;
     }
 
     /**
@@ -170,15 +170,16 @@ class BrowserVersions
      * @param bool $item
      * @return mixed|null
      */
-    function getData($browser = false, $item = false)
+    function getConfigData($browser = false, $item = false)
     {
+        $configData = $this->configData;
         if ($browser) {
             if ($item) {
-                return $this->data[$browser][$item];
+                return $configData[$browser][$item];
             }
-            return $this->data[$browser];
+            return $configData[$browser];
         }
-        return $this->data;
+        return $configData;
     }
 
     /**
@@ -189,36 +190,13 @@ class BrowserVersions
      * @return array|bool|mixed|string
      * @throws DomainException
      */
-    function fetchVersion($fragment, $normalize)
+    public static function fetchVersion($fragment, $normalize)
     {
-        $url = self::WIKIPEDIA_URL . $fragment;
+        $rawData = self::getRawData($fragment);
 
-        $raw_content = file_get_contents($url);
+        $matches = self::getMatches($rawData);
 
-        $content = unserialize($raw_content);
-        if ($content == $raw_content) {
-            throw new DomainException('Invalid content.');
-        }
-        $page = array_pop($content['query']['pages']);
-        $raw_data = $page['revisions'][0]['*'];
-
-        if (preg_match(self::WIKIPEDIA_PATTERN, $raw_data, $matches) === false) {
-            throw new DomainException("Unable to match version for $fragment.");
-        }
-
-        $version = $matches[1];
-
-        if (empty($version)) {
-            throw new DomainException("Missing version for $fragment.");
-        }
-
-        $version = preg_replace('/[^0-9\.]/', '', $version);
-
-        if ($normalize) {
-            return $this->normalizeVersion($version, $normalize);
-        }
-
-        return $version;
+        return self::parseVersion($matches, $fragment, $normalize);
     }
 
     /**
@@ -226,7 +204,7 @@ class BrowserVersions
      * @param $normalize
      * @return array|string
      */
-    function normalizeVersion($version, $normalize)
+    private static function normalizeVersion($version, $normalize)
     {
         $version = explode('.', $version);
 
@@ -243,5 +221,56 @@ class BrowserVersions
             $return[] = $version[$i];
         }
         return implode('.', $return);
+    }
+
+    /**
+     * @param string $rawData
+     * @return mixed
+     */
+    public static function getMatches($rawData)
+    {
+        if (preg_match(self::WIKIPEDIA_PATTERN, $rawData, $matches) === false) {
+            throw new DomainException("Unable to get matches.");
+        }
+        return $matches;
+    }
+
+    /**
+     * @param string $fragment
+     * @return mixed
+     */
+    private static function getRawData($fragment)
+    {
+        $url = self::WIKIPEDIA_URL . $fragment;
+        $rawContent = file_get_contents($url);
+        $content = unserialize($rawContent);
+        if ($content == $rawContent) {
+            throw new DomainException('Invalid content.');
+        }
+        $page = array_pop($content['query']['pages']);
+        return $page['revisions'][0]['*'];
+    }
+
+    /**
+     * @param array $matches
+     * @param string $fragment
+     * @param int|float $normalize
+     * @return array|string|string[]|null
+     */
+    private static function parseVersion($matches, $fragment, $normalize)
+    {
+        $version = $matches[1];
+
+        if (empty($version)) {
+            throw new DomainException("Missing version for $fragment.");
+        }
+
+        $version = preg_replace('/[^0-9\.]/', '', $version);
+
+        if ($normalize) {
+            return self::normalizeVersion($version, $normalize);
+        }
+
+        return $version;
     }
 }
