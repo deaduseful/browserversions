@@ -202,10 +202,11 @@ class BrowserVersions
         $page = array_pop($content['query']['pages']);
         $raw_data = $page['revisions'][0]['*'];
 
-        $version = false;
-        if (preg_match(self::WIKIPEDIA_PATTERN, $raw_data, $matches)) {
-            $version = $matches[1];
+        if (preg_match(self::WIKIPEDIA_PATTERN, $raw_data, $matches) === false) {
+            throw new DomainException("Unable to match version for $fragment.");
         }
+
+        $version = $matches[1];
 
         if (empty($version)) {
             throw new DomainException("Missing version for $fragment.");
