@@ -157,6 +157,22 @@ class BrowserVersions
         return $this->configFile;
     }
 
+    public static function parseWikidata($matches)
+    {
+        if (empty($matches)) {
+            throw new DomainException("Unable to parse Wikidata.");
+        }
+
+        $wikidata = $matches[1];
+
+        $pattern = '/{{wikidata\|property\|edit\|reference\|([^\|]+)\|([^\|]+)\|([^\|]+)\|([^\|]+)}}/';
+
+        preg_match($pattern, $wikidata, $newMatches);
+        array_shift($newMatches);
+
+        return $newMatches;
+    }
+
     /**
      * @param mixed $configFile
      */
@@ -195,6 +211,8 @@ class BrowserVersions
         $rawData = self::getRawData($fragment);
 
         $matches = self::getMatches($rawData);
+
+        self::parseWikidata($matches);
 
         return self::parseVersion($matches, $fragment, $normalize);
     }

@@ -12,6 +12,13 @@ final class BrowserVersionsTest extends TestCase
         $actual = $matches[1];
         $expected = '{{wikidata|property|edit|reference|Q777|P548=Q2804309|P400=Q1406|P348}}';
         $this->assertEquals($expected, $actual);
+    }
 
+    public function testParseWikidata()
+    {
+        $matches = ['', '{{wikidata|property|edit|reference|Q777|P548=Q2804309|P400=Q1406|P348}}'];
+        $actual = BrowserVersions::parseWikidata($matches);
+        $expected = ['Q777', 'P548=Q2804309', 'P400=Q1406', 'P348'];
+        $this->assertEquals($expected, $actual);
     }
 }
