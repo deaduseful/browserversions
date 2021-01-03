@@ -350,7 +350,7 @@ class BrowserVersions
         }
 
         usort($data->results->bindings, function ($a, $b) {
-            return strcmp($b->version->value, $a->version->value);
+            return version_compare($b->version->value, $a->version->value);
         });
 
         return $data->results->bindings[0]->version->value;

@@ -27,11 +27,18 @@ final class BrowserVersionsTest extends TestCase
         $this->assertEquals($expected, $actual);
     }
 
-    public function testFetchVersion()
+    public function testFetchChromeVersion()
     {
         $fragment = 'Google_Chrome';
         $actual = BrowserVersions::fetchVersion($fragment, 1);
-        $this->assertIsNumeric($actual);
+        $this->assertGreaterThanOrEqual('87', $actual);
+    }
+
+    public function testFetchFirefoxVersion()
+    {
+        $fragment = 'Firefox';
+        $actual = BrowserVersions::fetchVersion($fragment, 1);
+        $this->assertGreaterThanOrEqual('84', $actual);
     }
 
     public function testGetVersionsFile()
