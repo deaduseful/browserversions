@@ -16,9 +16,14 @@ final class BrowserVersionsTest extends TestCase
 
     public function testParseWikidata()
     {
-        $matches = ['', '{{wikidata|property|edit|reference|Q777|P548=Q2804309|P400=Q1406|P348}}'];
-        $actual = BrowserVersions::parseWikidata($matches);
-        $expected = ['Q777', 'P548=Q2804309', 'P400=Q1406', 'P348'];
+        $string = '{{wikidata|property|edit|reference|Q777|P548=Q2804309|P400=Q1406|P348}}';
+        $actual = BrowserVersions::parseWikidata($string);
+        $expected = [
+            'wikidata' => 'Q777',
+            'property' => 'P548=Q2804309',
+            'edit' => 'P400=Q1406',
+            'reference' => 'P348',
+        ];
         $this->assertEquals($expected, $actual);
     }
 
@@ -27,5 +32,12 @@ final class BrowserVersionsTest extends TestCase
         $fragment = 'Google_Chrome';
         $actual = BrowserVersions::fetchVersion($fragment, 1);
         $this->assertIsNumeric($actual);
+    }
+
+    public function testGetVersionsFile()
+    {
+        $browserVersions = new BrowserVersions();
+        $outputFile = $browserVersions->getCacheFile();
+        $this->assertEquals('versions.json', $outputFile);
     }
 }

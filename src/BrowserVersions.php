@@ -58,7 +58,7 @@ class BrowserVersions
      * @param bool $force
      * @return bool
      */
-    function updateCache($force = false)
+    public function updateCache($force = false)
     {
         $cacheFile = $this->getCacheFile();
         if ($force ||
@@ -123,7 +123,7 @@ class BrowserVersions
      * @return array
      * @throws UnexpectedValueException
      */
-    function fetchVersions($versions = [])
+    public function fetchVersions($versions = [])
     {
         if (!is_array($versions)) {
             throw new UnexpectedValueException('Expected array.');
@@ -163,7 +163,7 @@ class BrowserVersions
      * @param bool $item
      * @return mixed|null
      */
-    function getConfigData($browser = false, $item = false)
+    public function getConfigData($browser = false, $item = false)
     {
         $configData = $this->configData;
         if ($browser) {
@@ -187,10 +187,19 @@ class BrowserVersions
     {
         $rawData = self::getRawData($fragment);
         $wikidataMatches = self::getMatches($rawData);
-        $wikidataValues = self::parseWikidata($wikidataMatches);
-        $wikidataQuery = self::getWikidataQuery($wikidataValues[0]);
-        $wikidata = self::getWikiData($wikidataQuery);
-        $version = self::getVersionMatches($wikidata);
+        if (empty($wikidataMatches)) {
+            throw new DomainException("Unable to parse Wikidata.");
+        }
+        $match = $wikidataMatches[1];
+        if ($match[0] === '{') {
+            $wikidataValues = self::parseWikidata($match);
+            $wikidata = $wikidataValues['wikidata'];
+            $wikidataQuery = self::getWikidataQuery($wikidata);
+            $wikidata = self::getWikiData($wikidataQuery);
+            $version = self::getVersionMatches($wikidata);
+        } else {
+            $version = $match;
+        }
         return self::parseVersion($version, $normalize);
     }
 
@@ -223,40 +232,51 @@ class BrowserVersions
     }
 
     /**
-     * @param array $matches
-     * @return mixed
+     * @param string $string
+     * @return array
      */
-    public static function parseWikidata($matches)
+    public static function parseWikidata($string)
     {
-        if (empty($matches)) {
-            throw new DomainException("Unable to parse Wikidata.");
+        $wikidataString = ltrim($string, '{{');
+        $wikidataString = rtrim($wikidataString, '}}');
+        $expectedElements = 8;
+        $wikidataArray = explode('|', $wikidataString, $expectedElements);
+        $maxKeys = $expectedElements / 2;
+        $keys = [];
+        for ($i = 0; $i < $maxKeys; $i++) {
+            $keys[] = isset($wikidataArray[$i]) ? $wikidataArray[$i] : null;
         }
-
-        $wikidata = $matches[1];
-
-        $pattern = '/{{wikidata\|property\|edit\|reference\|([^\|]+)\|([^\|]+)\|([^\|]+)\|([^\|]+)}}/';
-
-        preg_match($pattern, $wikidata, $newMatches);
-        array_shift($newMatches);
-
-        return $newMatches;
+        $values = [];
+        for ($i = $maxKeys; $i < $expectedElements; $i++) {
+            $values[] = isset($wikidataArray[$i]) ? $wikidataArray[$i] : null;
+        }
+        if (count($keys) !== count($values)) {
+            $message = sprintf("Both parameters should have an equal number of elements, got: %s", $wikidataString);
+            throw new DomainException($message);
+        }
+        $results = array_combine($keys, $values);
+        if (isset($results['wikidata']) === false) {
+            $message = sprintf("Missing wikidata, got: %s", $wikidataString);
+            throw new DomainException($message);
+        }
+        return $results;
     }
 
     /**
-     * @param string $fragment
-     * @param string $property
+     * @param string $wikidata
+     * @param string $reference
      * @param false $rank
      * @return string
      */
-    public static function getWikidataQuery($fragment, $property = 'P348', $rank = false)
+    public static function getWikidataQuery($wikidata, $reference = 'P348', $rank = false)
     {
         $rankType = $rank ? 'PreferredRank' : 'NormalRank';
         $limit = $rank ? 'LIMIT 1' : '';
 
         return "
 		SELECT ?version WHERE {
-			wd:{$fragment} p:{$property} [
-				ps:{$property} ?version;
+			wd:{$wikidata} p:{$reference} [
+				ps:{$reference} ?version;
 				wikibase:rank wikibase:{$rankType}
 			].
 		}
