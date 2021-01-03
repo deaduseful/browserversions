@@ -335,7 +335,7 @@ class BrowserVersions
             throw new DomainException("Missing version.");
         }
 
-        $version = preg_replace('/[^0-9\.]/', '', $input);
+        $version = preg_replace('/[^0-9.]/', '', $input);
 
         if ($normalize) {
             return self::normalizeVersion($version, $normalize);
