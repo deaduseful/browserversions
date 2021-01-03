@@ -196,7 +196,7 @@ class BrowserVersions
 
     /**
      * @param string $fragment
-     * @return mixed
+     * @return string
      */
     public static function getRawData($fragment)
     {
@@ -212,7 +212,7 @@ class BrowserVersions
 
     /**
      * @param string $rawData
-     * @return mixed
+     * @return array
      */
     public static function getMatches($rawData)
     {
@@ -222,6 +222,10 @@ class BrowserVersions
         return $matches;
     }
 
+    /**
+     * @param array $matches
+     * @return mixed
+     */
     public static function parseWikidata($matches)
     {
         if (empty($matches)) {
@@ -260,6 +264,10 @@ class BrowserVersions
 	";
     }
 
+    /**
+     * @param string $query
+     * @return string
+     */
     public static function getWikiData($query)
     {
         $queryArray = [
@@ -297,6 +305,10 @@ class BrowserVersions
         return file_get_contents($host, $flags, $context);
     }
 
+    /**
+     * @param string $response
+     * @return false
+     */
     private static function getVersionMatches($response)
     {
         $data = json_decode($response);
