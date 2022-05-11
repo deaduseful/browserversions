@@ -114,7 +114,7 @@ class BrowserVersions
         return $this->configFile;
     }
 
-    public function getConfigData(bool $browser = false, bool $item = false)
+    public function getConfigData(string $browser = null, string $item = null)
     {
         $configData = $this->configData;
         if ($browser) {
@@ -143,8 +143,7 @@ class BrowserVersions
         }
         $match = $wikidataMatches[1];
         if ($match[0] === '{') {
-            $wikidataValues = self::parseWikidata($match);
-            $wikidata = $wikidataValues['wikidata'];
+            $wikidata = self::parseWikidata($match);
             $wikidataQuery = self::getWikidataQuery($wikidata);
             $wikidata = self::getWikiData($wikidataQuery);
             $version = self::getVersionMatches($wikidata);
@@ -174,31 +173,20 @@ class BrowserVersions
         return $matches;
     }
 
-    public static function parseWikidata(string $string): array
+    /** @see https://en.wikipedia.org/wiki/Template:Wikidata */
+    public static function parseWikidata(string $string): string
     {
         $wikidataString = ltrim($string, self::START_CHARACTERS);
         $wikidataString = rtrim($wikidataString, self::END_CHARACTERS);
-        $expectedElements = 8;
-        $wikidataArray = explode('|', $wikidataString, $expectedElements);
-        $maxKeys = $expectedElements / 2;
-        $keys = [];
-        for ($i = 0; $i < $maxKeys; $i++) {
-            $keys[] = $wikidataArray[$i] ?? null;
+        $separator = '|';
+        $expectedElements = substr_count($wikidataString, $separator);
+        $wikidataArray = explode($separator, $wikidataString, $expectedElements);
+        foreach ($wikidataArray as $wikidata) {
+            if ($wikidata[0] === 'Q') {
+                return $wikidata;
+            }
         }
-        $values = [];
-        for ($i = $maxKeys; $i < $expectedElements; $i++) {
-            $values[] = $wikidataArray[$i] ?? null;
-        }
-        if (count($keys) !== count($values)) {
-            $message = sprintf('Both parameters should have an equal number of elements, got: %s', $wikidataString);
-            throw new DomainException($message);
-        }
-        $results = array_combine($keys, $values);
-        if (isset($results['wikidata']) === false) {
-            $message = sprintf('Missing wikidata, got: %s', $wikidataString);
-            throw new DomainException($message);
-        }
-        return $results;
+        throw new DomainException('Unable to get Q-identifier');
     }
 
     public static function getWikidataQuery(string $wikidata, string $reference = 'P348', bool $rank = false): string
@@ -249,31 +237,28 @@ class BrowserVersions
         return file_get_contents($host, $flags, $context);
     }
 
-    private static function getVersionMatches(string $response): bool
+    private static function getVersionMatches(string $response): ?string
     {
         $data = json_decode($response);
-
         if (
             empty($data) ||
             empty($data->results) ||
             !is_array($data->results->bindings)
         ) {
-            return false;
+            return null;
         }
-
+        $bindings = $data->results->bindings;
         if (
-            empty($data->results->bindings[0]) ||
-            empty($data->results->bindings[0]->version) ||
-            empty($data->results->bindings[0]->version->value)
+            empty($bindings[0]) ||
+            empty($bindings[0]->version) ||
+            empty($bindings[0]->version->value)
         ) {
-            return false;
+            return null;
         }
-
-        usort($data->results->bindings, function ($a, $b) {
+        usort($bindings, function ($a, $b) {
             return version_compare($b->version->value, $a->version->value);
         });
-
-        return $data->results->bindings[0]->version->value;
+        return $bindings[0]->version->value;
     }
 
     /**
