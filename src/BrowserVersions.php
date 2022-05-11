@@ -4,7 +4,6 @@ namespace Deaduseful\BrowserVersions;
 
 use DomainException;
 use RuntimeException;
-use UnexpectedValueException;
 
 /**
  * Class BrowserVersions
@@ -12,53 +11,36 @@ use UnexpectedValueException;
  */
 class BrowserVersions
 {
-    /**
-     * The URL path to get the browser version from.
-     */
+    /** @var string The URL path to get the browser version from */
     const WIKIPEDIA_URL = 'https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&format=php&titles=Template:Latest_stable_software_release/';
 
-    /**
-     * The pattern to use to match the Wikipedia article.
-     */
+    /** @var string The pattern to use to match the Wikipedia article */
     const WIKIPEDIA_PATTERN = '/(?:version1|latest[_ ]release[_ ]version)\s*=\s*(.+)/';
 
-    /**
-     * The data file, details about the browsers.
-     */
-    private $configFile = __DIR__ . '/browsers.json';
+    /** @var string Wikipedia Start Characters */
+    const START_CHARACTERS = '{{';
 
-    /**
-     * The cache file, the browser versions.
-     */
-    private $cacheFile = 'versions.json';
+    /** @var string Wikipedia End Characters */
+    const END_CHARACTERS = '}}';
 
-    /**
-     * The maximum age of the cache file. Default is 3 months which is half of the expected browser release cycle.
-     */
-    private $maxAge = 3 * 7 * 24 * 60 * 60;
+    /** The data file, details about the browsers */
+    private string $configFile = __DIR__ . '/browsers.json';
 
-    /**
-     * @var array The browser data.
-     */
-    private $configData;
+    /** The cache file, the browser versions */
+    private string $cacheFile = 'versions.json';
 
-    /**
-     * BrowserVersions constructor.
-     *
-     * @param bool $force
-     */
-    function __construct($force = false)
+    /** The maximum age of the cache file. Default is 3 months which is half of the expected browser release cycle. */
+    private int $maxAge = 3 * 7 * 24 * 60 * 60;
+
+    /** @var array The browser data */
+    private array $configData;
+
+    function __construct(bool $force = false)
     {
         $this->updateCache($force);
     }
 
-    /**
-     * Update Cache.
-     *
-     * @param bool $force
-     * @return bool
-     */
-    public function updateCache($force = false)
+    public function updateCache(bool $force = false): bool
     {
         $cacheFile = $this->getCacheFile();
         if ($force ||
@@ -86,48 +68,28 @@ class BrowserVersions
         return false;
     }
 
-    /**
-     * @return mixed
-     */
-    public function getCacheFile()
+    public function getCacheFile(): string
     {
         return $this->cacheFile;
     }
 
-    /**
-     * @param mixed $cacheFile
-     */
-    public function setCacheFile($cacheFile)
+    public function setCacheFile(string $cacheFile)
     {
         $this->cacheFile = $cacheFile;
     }
 
-    /**
-     * @return mixed
-     */
-    public function getMaxAge()
+    public function getMaxAge(): int
     {
         return $this->maxAge;
     }
 
-    /**
-     * @param mixed $maxAge
-     */
-    public function setMaxAge($maxAge)
+    public function setMaxAge(int $maxAge)
     {
         $this->maxAge = $maxAge;
     }
 
-    /**
-     * @param array $versions
-     * @return array
-     * @throws UnexpectedValueException
-     */
-    public function fetchVersions($versions = [])
+    public function fetchVersions(array $versions): array
     {
-        if (!is_array($versions)) {
-            throw new UnexpectedValueException('Expected array.');
-        }
         $this->loadConfigData();
         $data = $this->getConfigData();
         foreach ($data as $key => $name) {
@@ -142,28 +104,17 @@ class BrowserVersions
         return $versions;
     }
 
-    /**
-     *
-     */
     private function loadConfigData()
     {
         $this->configData = json_decode(file_get_contents($this->getConfigDataFile()), 1);
     }
 
-    /**
-     * @return mixed
-     */
-    public function getConfigDataFile()
+    public function getConfigDataFile(): string
     {
         return $this->configFile;
     }
 
-    /**
-     * @param bool $browser
-     * @param bool $item
-     * @return mixed|null
-     */
-    public function getConfigData($browser = false, $item = false)
+    public function getConfigData(bool $browser = false, bool $item = false)
     {
         $configData = $this->configData;
         if ($browser) {
@@ -180,10 +131,10 @@ class BrowserVersions
      *
      * @param string $fragment The "wikipedia" fragment, eg: Firefox.
      * @param int|double|null $normalize The "normalized", eg: 1.5
-     * @return array|bool|mixed|string
+     * @return array|string
      * @throws DomainException
      */
-    public static function fetchVersion($fragment, $normalize = null)
+    public static function fetchVersion(string $fragment, $normalize = null)
     {
         $rawData = self::getRawData($fragment);
         $wikidataMatches = self::getMatches($rawData);
@@ -203,11 +154,7 @@ class BrowserVersions
         return self::parseVersion($version, $normalize);
     }
 
-    /**
-     * @param string $fragment
-     * @return string
-     */
-    public static function getRawData($fragment)
+    public static function getRawData(string $fragment): string
     {
         $url = self::WIKIPEDIA_URL . $fragment;
         $rawContent = file_get_contents($url);
@@ -219,56 +166,42 @@ class BrowserVersions
         return $page['revisions'][0]['*'];
     }
 
-    /**
-     * @param string $rawData
-     * @return array
-     */
-    public static function getMatches($rawData)
+    public static function getMatches(string $rawData): array
     {
         if (preg_match(self::WIKIPEDIA_PATTERN, $rawData, $matches) === false) {
-            throw new DomainException("Unable to get matches.");
+            throw new DomainException('Unable to get matches');
         }
         return $matches;
     }
 
-    /**
-     * @param string $string
-     * @return array
-     */
-    public static function parseWikidata($string)
+    public static function parseWikidata(string $string): array
     {
-        $wikidataString = ltrim($string, '{{');
-        $wikidataString = rtrim($wikidataString, '}}');
+        $wikidataString = ltrim($string, self::START_CHARACTERS);
+        $wikidataString = rtrim($wikidataString, self::END_CHARACTERS);
         $expectedElements = 8;
         $wikidataArray = explode('|', $wikidataString, $expectedElements);
         $maxKeys = $expectedElements / 2;
         $keys = [];
         for ($i = 0; $i < $maxKeys; $i++) {
-            $keys[] = isset($wikidataArray[$i]) ? $wikidataArray[$i] : null;
+            $keys[] = $wikidataArray[$i] ?? null;
         }
         $values = [];
         for ($i = $maxKeys; $i < $expectedElements; $i++) {
-            $values[] = isset($wikidataArray[$i]) ? $wikidataArray[$i] : null;
+            $values[] = $wikidataArray[$i] ?? null;
         }
         if (count($keys) !== count($values)) {
-            $message = sprintf("Both parameters should have an equal number of elements, got: %s", $wikidataString);
+            $message = sprintf('Both parameters should have an equal number of elements, got: %s', $wikidataString);
             throw new DomainException($message);
         }
         $results = array_combine($keys, $values);
         if (isset($results['wikidata']) === false) {
-            $message = sprintf("Missing wikidata, got: %s", $wikidataString);
+            $message = sprintf('Missing wikidata, got: %s', $wikidataString);
             throw new DomainException($message);
         }
         return $results;
     }
 
-    /**
-     * @param string $wikidata
-     * @param string $reference
-     * @param false $rank
-     * @return string
-     */
-    public static function getWikidataQuery($wikidata, $reference = 'P348', $rank = false)
+    public static function getWikidataQuery(string $wikidata, string $reference = 'P348', bool $rank = false): string
     {
         $rankType = $rank ? 'PreferredRank' : 'NormalRank';
         $limit = $rank ? 'LIMIT 1' : '';
@@ -284,11 +217,7 @@ class BrowserVersions
 	";
     }
 
-    /**
-     * @param string $query
-     * @return string
-     */
-    public static function getWikiData($query)
+    public static function getWikiData(string $query): string
     {
         $queryArray = [
             'format' => 'json',
@@ -302,13 +231,8 @@ class BrowserVersions
 
     /**
      * Similar to file_get_contents, but passes in a user agent.
-     *
-     * @param string $host
-     * @param array $headers
-     * @param int $timeout
-     * @return string
      */
-    protected static function fileGetContents($host, $headers = ['User-Agent: Browser Versions'], $timeout = 1)
+    protected static function fileGetContents(string $host, array $headers = ['User-Agent: Browser Versions'], int $timeout = 1): string
     {
         if (ini_get('allow_url_fopen') == '0') {
             throw new RuntimeException('Disabled in the server configuration by allow_url_fopen=0');
@@ -325,11 +249,7 @@ class BrowserVersions
         return file_get_contents($host, $flags, $context);
     }
 
-    /**
-     * @param string $response
-     * @return false
-     */
-    private static function getVersionMatches($response)
+    private static function getVersionMatches(string $response): bool
     {
         $data = json_decode($response);
 
@@ -357,11 +277,10 @@ class BrowserVersions
     }
 
     /**
-     * @param string $input
      * @param int|double|null $normalize
      * @return array|string|string[]|null
      */
-    private static function parseVersion($input, $normalize = null)
+    private static function parseVersion(string $input, $normalize = null)
     {
         if (empty($input)) {
             throw new DomainException("Missing version.");
@@ -377,11 +296,10 @@ class BrowserVersions
     }
 
     /**
-     * @param $version
-     * @param $normalize
+     * @param int|double|null $normalize
      * @return array|string
      */
-    private static function normalizeVersion($version, $normalize)
+    private static function normalizeVersion(string $version, $normalize = null)
     {
         $version = explode('.', $version);
 
@@ -400,9 +318,6 @@ class BrowserVersions
         return implode('.', $return);
     }
 
-    /**
-     * @param mixed $configFile
-     */
     public function setConfigFile($configFile)
     {
         $this->configFile = $configFile;
