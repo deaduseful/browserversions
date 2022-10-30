@@ -162,6 +162,9 @@ class BrowserVersions
             throw new DomainException('Invalid content.');
         }
         $page = array_pop($content['query']['pages']);
+        if (array_key_exists('revisions', $page) === false) {
+            throw new DomainException('Unable to get revisions from page');
+        }
         return $page['revisions'][0]['*'];
     }
 
