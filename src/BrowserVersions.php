@@ -131,15 +131,21 @@ class BrowserVersions
      *
      * @param string $fragment The "wikipedia" fragment, eg: Firefox.
      * @param int|double|null $normalize The "normalized", eg: 1.5
-     * @return array|string
+     * @return null|array|string
      * @throws DomainException
      */
     public static function fetchVersion(string $fragment, $normalize = null)
     {
         $rawData = self::getRawData($fragment);
+        if ($rawData === null) {
+            return null;
+        }
+        if (empty($rawData)) {
+            throw new DomainException('Empty raw Wikidata');
+        }
         $wikidataMatches = self::getMatches($rawData);
         if (empty($wikidataMatches)) {
-            throw new DomainException("Unable to parse Wikidata.");
+            throw new DomainException('Empty matches from Wikidata');
         }
         $match = $wikidataMatches[1];
         if ($match[0] === '{') {
@@ -153,17 +159,17 @@ class BrowserVersions
         return self::parseVersion($version, $normalize);
     }
 
-    public static function getRawData(string $fragment): string
+    public static function getRawData(string $fragment): ?string
     {
         $url = self::WIKIPEDIA_URL . $fragment;
         $rawContent = file_get_contents($url);
         $content = unserialize($rawContent);
         if ($content == $rawContent) {
-            throw new DomainException('Invalid content.');
+            throw new DomainException('Invalid content');
         }
         $page = array_pop($content['query']['pages']);
         if (array_key_exists('revisions', $page) === false) {
-            throw new DomainException('Unable to get revisions from page');
+            return null;
         }
         return $page['revisions'][0]['*'];
     }
