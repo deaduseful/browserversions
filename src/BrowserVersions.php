@@ -191,7 +191,8 @@ class BrowserVersions
         $expectedElements = substr_count($wikidataString, $separator);
         $wikidataArray = explode($separator, $wikidataString, $expectedElements);
         foreach ($wikidataArray as $wikidata) {
-            if ($wikidata[0] === 'Q') {
+            if (empty($wikidata) === false &&
+                $wikidata[0] === 'Q') {
                 return $wikidata;
             }
         }

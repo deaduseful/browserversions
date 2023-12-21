@@ -30,6 +30,14 @@ final class BrowserVersionsTest extends TestCase
         $this->assertEquals($expected, $actual);
     }
 
+    public function testParseWikidata3()
+    {
+        $string = '{{{{{|safesubst:}}}wikidata|property|preferred|references|edit|Q777|P348|P400=Q1406|P548=Q2804309}}';
+        $actual = BrowserVersions::parseWikidata($string);
+        $expected = 'Q777';
+        $this->assertEquals($expected, $actual);
+    }
+
     public function testFetchChromeVersion()
     {
         $fragment = 'Google_Chrome';
