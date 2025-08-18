@@ -12,16 +12,24 @@ use RuntimeException;
 class BrowserVersions
 {
     /** @var string The URL path to get the browser version from */
-    const WIKIPEDIA_URL = 'https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&format=php&titles=Template:Latest_stable_software_release/';
+    private const WIKIPEDIA_URL = 'https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&format=php&titles=Template:Latest_stable_software_release/';
 
     /** @var string The pattern to use to match the Wikipedia article */
-    const WIKIPEDIA_PATTERN = '/(?:version1|latest[_ ]release[_ ]version)\s*=\s*(.+)/';
+    private const WIKIPEDIA_PATTERN = '/(?:version1|latest[_ ]release[_ ]version)\s*=\s*(.+)/';
 
     /** @var string Wikipedia Start Characters */
-    const START_CHARACTERS = '{{';
+    private const START_CHARACTERS = '{{';
 
     /** @var string Wikipedia End Characters */
-    const END_CHARACTERS = '}}';
+    private const END_CHARACTERS = '}}';
+
+    /** @var array HTTP options for requests */
+    private const HTTP_OPTIONS = [
+        'http' => [
+            'header' => ['User-Agent: Deaduseful BrowserVersions/1.0 (https://github.com/deaduseful/browserversions; admin@deaduseful.com)'],
+            'timeout' => 1,
+        ]
+    ];
 
     /** The data file, details about the browsers */
     private string $configFile = __DIR__ . '/browsers.json';
@@ -35,7 +43,7 @@ class BrowserVersions
     /** @var array The browser data */
     private array $configData;
 
-    function __construct(bool $force = false)
+    public function __construct(bool $force = false)
     {
         $this->updateCache($force);
     }
@@ -162,7 +170,7 @@ class BrowserVersions
     public static function getRawData(string $fragment): ?string
     {
         $url = self::WIKIPEDIA_URL . $fragment;
-        $rawContent = file_get_contents($url);
+        $rawContent = self::fileGetContents($url);
         $content = unserialize($rawContent);
         if ($content == $rawContent) {
             throw new DomainException('Invalid content');
@@ -230,21 +238,13 @@ class BrowserVersions
     /**
      * Similar to file_get_contents, but passes in a user agent.
      */
-    protected static function fileGetContents(string $host, array $headers = ['User-Agent: Browser Versions'], int $timeout = 1): string
+    protected static function fileGetContents(string $host, array $options = self::HTTP_OPTIONS): string
     {
         if (ini_get('allow_url_fopen') == '0') {
             throw new RuntimeException('Disabled in the server configuration by allow_url_fopen=0');
         }
-        $options = [
-            'http' =>
-                [
-                    'header' => $headers,
-                    'timeout' => $timeout
-                ]
-        ];
         $context = stream_context_create($options);
-        $flags = null;
-        return file_get_contents($host, $flags, $context);
+        return file_get_contents($host, false, $context);
     }
 
     private static function getVersionMatches(string $response): ?string
@@ -301,8 +301,9 @@ class BrowserVersions
         if ($normalize == 1.5) {
             $return = $version[0];
             if (isset($version[1]) &&
-                $version[1] !== '0')
+                $version[1] !== '0') {
                 $return .= '.' . $version[1];
+            }
             return $return;
         }
 
