@@ -97,6 +97,66 @@ final class BrowserVersionsTest extends TestCase
         $this->assertEquals($expected, $actual);
     }
 
+    /**
+     * Regression: Wikipedia editors keep the previous version commented out
+     * above the live `{{Wikidata}}` macro, e.g.
+     *
+     *     <!--| version1 = 134.0.6998.177/178 -->
+     *     | version1 = {{Wikidata|...}}
+     *
+     * A naive first-match regex locked onto the commented (stale) line and
+     * caused Chrome to silently regress to "134". `getMatches()` must strip
+     * comments before matching and return the live wikidata macro instead.
+     */
+    public function testGetMatchesSkipsCommentedVersionLine()
+    {
+        $rawData = file_get_contents(__DIR__ . '/fixtures/wikitext_chrome_with_commented_version.txt');
+
+        $matches = BrowserVersions::getMatches($rawData);
+
+        $this->assertNotEmpty($matches);
+        $this->assertStringContainsString('wikidata', $matches[1]);
+        $this->assertStringContainsString('Q777', $matches[1]);
+        $this->assertStringNotContainsString('134.0.6998', $matches[1]);
+    }
+
+    public function testGetVersionMatchesFiltersNonNumericLabels()
+    {
+        $response = json_encode([
+            'results' => [
+                'bindings' => [
+                    ['version' => ['value' => 'Technology Preview 156']],
+                    ['version' => ['value' => '26.2']],
+                    ['version' => ['value' => 'Technology Preview 139']],
+                    ['version' => ['value' => '18.6.2']],
+                ],
+            ],
+        ]);
+
+        $this->assertSame('26.2', BrowserVersions::getVersionMatches($response));
+    }
+
+    public function testGetVersionMatchesReturnsNullWhenAllNonNumeric()
+    {
+        $response = json_encode([
+            'results' => [
+                'bindings' => [
+                    ['version' => ['value' => 'Technology Preview 156']],
+                    ['version' => ['value' => 'beta']],
+                ],
+            ],
+        ]);
+
+        $this->assertNull(BrowserVersions::getVersionMatches($response));
+    }
+
+    public function testGetVersionMatchesReturnsNullForEmptyBindings()
+    {
+        $response = json_encode(['results' => ['bindings' => []]]);
+
+        $this->assertNull(BrowserVersions::getVersionMatches($response));
+    }
+
     public function testParseWikidata()
     {
         $string = '{{wikidata|property|edit|reference|Q777|P548=Q2804309|P400=Q1406|P348}}';

@@ -1,0 +1,11 @@
+{{Multiple releases
+<!--| branch1 = Windows
+| version1 = 134.0.6998.177/178
+| date1 = {{start date and age|2025|3|25|df=y}}-->
+
+| branch1 = Windows, macOS
+| version1 = {{{{{|safesubst:}}}wikidata|property|preferred|references|edit|Q777|P348|P400=Q1406|P548=Q2804309}}
+| date1 = {{start date and age|{{wikidata|qualifier|preferred|single|Q777|P348|P400=Q1406|P548=Q2804309|P577}}}}
+}}<noinclude>
+[[Category:Latest stable software release templates|Google Chrome]]
+</noinclude>
