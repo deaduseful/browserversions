@@ -1,0 +1,30 @@
+{
+    "batchcomplete": true,
+    "query": {
+        "normalized": [
+            {
+                "fromencoded": false,
+                "from": "Template:Latest_stable_software_release/Firefox",
+                "to": "Template:Latest stable software release/Firefox"
+            }
+        ],
+        "pages": [
+            {
+                "pageid": 2539503,
+                "ns": 10,
+                "title": "Template:Latest stable software release/Firefox",
+                "revisions": [
+                    {
+                        "slots": {
+                            "main": {
+                                "contentmodel": "wikitext",
+                                "contentformat": "text/x-wiki",
+                                "content": "<noinclude>{{Use mdy dates|date=February 2020}}\n\n{{Ombox | type = notice | text = Please do not update this template to the next version until the [https://www.mozilla.org/en-US/firefox/notes release notes] for that version are [https://www.mozilla.org/en-US/firefox available] and marked as \"offered to release channel\" (rather than \"offered to Beta channel\" or something like that).<br/>Also, please consider updating [[Template:Timeline Mozilla Firefox]] when adding a new version.}}\n</noinclude>{{Multiple releases\n|branch1 = Standard\n|version1 = {{wikidata|property|reference|edit|Q698|P548=Q2804309|P348}}\n|date1 = {{start date and age|{{wikidata|qualifier|mdy|Q698|P548=Q2804309|P348|P577}}}}\n|branch2 = {{abbr|ESR|Extended support release}}{{nbsp}}1\n|version2 = {{wikidata|property|reference|edit|Q698|P548=Q104243413|P348}}\n|date2 = {{start date and age|{{wikidata|qualifier|mdy|Q698|P548=Q104243413|P348|P577}}}}\n|branch3 = {{abbr|ESR|Extended support release}}{{nbsp}}2\n|version3 = 115.36.0esr<ref>{{cite web |url=https://www.firefox.com/en-US/firefox/115.36.0/releasenotes/ |title=Firefox ESR 115.36.0, See All New Features, Updates and Fixes |publisher=Firefox |date=19 May 2026 |access-date=19 May 2026}}</ref>\n|date3 = {{start date and age|2026|5|19}}\n}}<noinclude>\n\n\u2192 Back to article \"'''[[Firefox]]'''\"\n\n{{Template reference list}}\n\n[[Category:Latest stable software release templates|Firefox]]\n[[Category:Mozilla-related templates|Firefox]]\n</noinclude>"
+                            }
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
