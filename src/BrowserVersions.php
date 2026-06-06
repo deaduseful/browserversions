@@ -100,11 +100,25 @@ class BrowserVersions
     {
         $this->loadConfigData();
         $data = $this->getConfigData();
-        foreach ($data as $key => $name) {
-            $browser = $key;
-            $fragment = $this->getConfigData($browser, 'wikipedia');
-            $normalize = $this->getConfigData($browser, 'normalized');
-            $version = self::fetchVersion($fragment, $normalize);
+        foreach ($data as $key => $config) {
+            $normalize = $config['normalized'] ?? null;
+            $version = null;
+            if (!empty($config['wikipedia'])) {
+                try {
+                    $version = self::fetchVersion($config['wikipedia'], $normalize);
+                } catch (DomainException $e) {
+                    // Wikipedia template is absent or malformed; fall through
+                    // to the Wikidata path below if one is configured.
+                    $version = null;
+                }
+            }
+            if ($version === null && !empty($config['wikidata'])) {
+                try {
+                    $version = self::fetchVersionByWikidata($config['wikidata'], $normalize);
+                } catch (DomainException $e) {
+                    $version = null;
+                }
+            }
             if ($version) {
                 $versions[$key] = $version;
             }
@@ -158,13 +172,45 @@ class BrowserVersions
         $match = $wikidataMatches[1];
         if ($match[0] === '{') {
             $wikidata = self::parseWikidata($match);
-            $wikidataQuery = self::getWikidataQuery($wikidata);
-            $wikidata = self::getWikiData($wikidataQuery);
-            $version = self::getVersionMatches($wikidata);
+            $version = self::queryWikidataVersion($wikidata);
         } else {
             $version = $match;
         }
+        if ($version === null) {
+            return null;
+        }
         return self::parseVersion($version, $normalize);
+    }
+
+    /**
+     * Fetch a browser version directly from Wikidata, bypassing Wikipedia
+     * templates entirely.
+     *
+     * Some browsers (Safari, Opera, Internet Explorer) no longer have a
+     * `Template:Latest_stable_software_release/<Name>` page, so the template-
+     * based path always returns null for them. Letting `browsers.json`
+     * specify a Wikidata Q-identifier directly gives us a stable refresh path
+     * that does not depend on the template layout staying constant.
+     *
+     * @param string $wikidata A Wikidata Q-identifier, eg: Q35773 (Safari).
+     * @param int|double|null $normalize
+     * @return array|string|null
+     * @throws DomainException
+     */
+    public static function fetchVersionByWikidata(string $wikidata, $normalize = null)
+    {
+        $version = self::queryWikidataVersion($wikidata);
+        if ($version === null) {
+            return null;
+        }
+        return self::parseVersion($version, $normalize);
+    }
+
+    private static function queryWikidataVersion(string $wikidata): ?string
+    {
+        $query = self::getWikidataQuery($wikidata);
+        $response = self::getWikiData($query);
+        return self::getVersionMatches($response);
     }
 
     public static function getRawData(string $fragment): ?string
@@ -201,6 +247,12 @@ class BrowserVersions
 
     public static function getMatches(string $rawData): array
     {
+        // Strip HTML/wikitext comments first. Wikipedia editors routinely keep
+        // the previous `version1 = X.Y.Z` line commented out above the live
+        // `{{Wikidata|...}}` macro, and a naive first-match regex would lock
+        // onto that stale value forever (e.g. Chrome silently regressing to
+        // "134" when the live Wikidata version was already much higher).
+        $rawData = (string) preg_replace('/<!--.*?-->/s', '', $rawData);
         if (preg_match(self::WIKIPEDIA_PATTERN, $rawData, $matches) === false) {
             throw new DomainException('Unable to get matches');
         }
@@ -264,7 +316,15 @@ class BrowserVersions
         return file_get_contents($host, false, $context);
     }
 
-    private static function getVersionMatches(string $response): ?string
+    /**
+     * Pick the highest plausible version from a Wikidata SPARQL response.
+     *
+     * Filters bindings to values that look like a real version number
+     * (start with a digit). Without this, items such as Safari's
+     * "Technology Preview 156" labels would be sorted alongside genuine
+     * releases like "26.2" and could win the comparison.
+     */
+    public static function getVersionMatches(string $response): ?string
     {
         $data = json_decode($response);
         if (
@@ -274,15 +334,17 @@ class BrowserVersions
         ) {
             return null;
         }
-        $bindings = $data->results->bindings;
-        if (
-            empty($bindings[0]) ||
-            empty($bindings[0]->version) ||
-            empty($bindings[0]->version->value)
-        ) {
+        $bindings = array_values(array_filter(
+            $data->results->bindings,
+            static function ($binding): bool {
+                return isset($binding->version->value)
+                    && preg_match('/^\d/', $binding->version->value) === 1;
+            }
+        ));
+        if (empty($bindings)) {
             return null;
         }
-        usort($bindings, function ($a, $b) {
+        usort($bindings, static function ($a, $b) {
             return version_compare($b->version->value, $a->version->value);
         });
         return $bindings[0]->version->value;
