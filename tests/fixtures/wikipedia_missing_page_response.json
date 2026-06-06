@@ -1,0 +1,19 @@
+{
+    "batchcomplete": true,
+    "query": {
+        "normalized": [
+            {
+                "fromencoded": false,
+                "from": "Template:Latest_stable_software_release/Safari",
+                "to": "Template:Latest stable software release/Safari"
+            }
+        ],
+        "pages": [
+            {
+                "ns": 10,
+                "title": "Template:Latest stable software release/Safari",
+                "missing": true
+            }
+        ]
+    }
+}

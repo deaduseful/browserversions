@@ -171,6 +171,19 @@ class BrowserVersions
     {
         $url = self::WIKIPEDIA_URL . $fragment;
         $rawContent = self::fileGetContents($url);
+        return self::parseRawData($rawContent);
+    }
+
+    /**
+     * Parse a MediaWiki API revisions response and return the wikitext body.
+     *
+     * Split out from getRawData() so the parsing logic is unit-testable with
+     * a fixture instead of hitting the live Wikipedia API.
+     *
+     * @throws DomainException When the response is not a valid MediaWiki query.
+     */
+    public static function parseRawData(string $rawContent): ?string
+    {
         $content = json_decode($rawContent, true);
         if (!is_array($content) || empty($content['query']['pages'])) {
             throw new DomainException('Invalid content');
