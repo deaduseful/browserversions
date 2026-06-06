@@ -12,7 +12,7 @@ use RuntimeException;
 class BrowserVersions
 {
     /** @var string The URL path to get the browser version from */
-    private const WIKIPEDIA_URL = 'https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&format=php&titles=Template:Latest_stable_software_release/';
+    private const WIKIPEDIA_URL = 'https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&format=json&formatversion=2&titles=Template:Latest_stable_software_release/';
 
     /** @var string The pattern to use to match the Wikipedia article */
     private const WIKIPEDIA_PATTERN = '/(?:version1|latest[_ ]release[_ ]version)\s*=\s*(.+)/';
@@ -171,15 +171,19 @@ class BrowserVersions
     {
         $url = self::WIKIPEDIA_URL . $fragment;
         $rawContent = self::fileGetContents($url);
-        $content = unserialize($rawContent);
-        if ($content == $rawContent) {
+        $content = json_decode($rawContent, true);
+        if (!is_array($content) || empty($content['query']['pages'])) {
             throw new DomainException('Invalid content');
         }
         $page = array_pop($content['query']['pages']);
-        if (array_key_exists('revisions', $page) === false) {
+        if (!isset($page['revisions'][0])) {
             return null;
         }
-        return $page['revisions'][0]['*'];
+        $revision = $page['revisions'][0];
+        return $revision['slots']['main']['content']
+            ?? $revision['content']
+            ?? $revision['*']
+            ?? null;
     }
 
     public static function getMatches(string $rawData): array
